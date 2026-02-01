@@ -1,7 +1,5 @@
 # 输入增强
 
-<iframe src="键盘模拟.html" width="100%" height="600px" frameborder="0"></iframe>
-
 一个基于 AutoHotkey v2.0 的键盘输入增强工具，让你的键盘使用更加高效便捷。
 
 ## 功能特性
