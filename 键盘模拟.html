@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>键盘模拟</title>
+        <style>
+            :root {
+                --bg-color: #f5f5f5;
+                --keyboard-bg: #e0e0e0;
+                --key-bg: #ffffff;
+                --key-bg-hover: #f8f8f8;
+                --key-bg-active: #d0d0d0;
+                --key-border: #cccccc;
+                --key-text: #333333;
+                --key-special-color: #4a90d9;
+                --key-highlight-color: #5cb85c;
+                --key-edit-color: #f0ad4e;
+                --key-tab-alt-color: #d9534f;
+                --shadow-light: #ffffff;
+                --shadow-dark: #aaaaaa;
+                --shadow-inset: #bbbbbb;
+            }
+
+            [data-theme='dark'] {
+                --bg-color: #1a1a1a;
+                --keyboard-bg: #2d2d2d;
+                --key-bg: #3d3d3d;
+                --key-bg-hover: #4d4d4d;
+                --key-bg-active: #2d2d2d;
+                --key-border: #4a4a4a;
+                --key-text: #e0e0e0;
+                --key-special-color: #5a9fd4;
+                --key-highlight-color: #6cb86c;
+                --key-edit-color: #f5c26b;
+                --key-tab-alt-color: #e57373;
+                --shadow-light: #4a4a4a;
+                --shadow-dark: #1a1a1a;
+                --shadow-inset: #2a2a2a;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: var(--bg-color);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                transition: background-color 0.3s ease;
+            }
+
+            .container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 30px;
+            }
+
+            .theme-toggle {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                border: 2px solid var(--key-border);
+                background-color: var(--key-bg);
+                cursor: pointer;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                transition: all 0.3s ease;
+                color: var(--key-text);
+            }
+
+            .theme-toggle:hover {
+                background-color: var(--key-bg-hover);
+                transform: scale(1.05);
+            }
+
+            .theme-toggle svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .moon-icon {
+                display: none;
+            }
+
+            [data-theme='dark'] .sun-icon {
+                display: none;
+            }
+
+            [data-theme='dark'] .moon-icon {
+                display: block;
+            }
+
+            .keyboard {
+                width: 800px;
+                background-color: var(--keyboard-bg);
+                padding: 15px;
+                border-radius: 12px;
+                box-shadow:
+                    0 10px 30px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 var(--shadow-light),
+                    inset 0 -1px 0 var(--shadow-dark);
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                transition: background-color 0.3s ease;
+            }
+
+            .keyboard-row {
+                display: flex;
+                gap: 6px;
+                justify-content: center;
+            }
+
+            .key {
+                width: 46px;
+                height: 46px;
+                background-color: var(--key-bg);
+                border: 1px solid var(--key-border);
+                border-radius: 6px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--key-text);
+                cursor: pointer;
+                user-select: none;
+                transition: all 0.15s ease;
+                box-shadow:
+                    0 2px 0 var(--shadow-dark),
+                    0 3px 5px rgba(0, 0, 0, 0.1);
+                position: relative;
+            }
+
+            .key:hover {
+                background-color: var(--key-bg-hover);
+                transform: translateY(-1px);
+                box-shadow:
+                    0 3px 0 var(--shadow-dark),
+                    0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .key:active,
+            .key.pressed {
+                background-color: var(--key-bg-active);
+                transform: translateY(2px);
+                box-shadow:
+                    0 0 0 var(--shadow-dark),
+                    inset 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+
+            .key-special,
+            .key-backslash {
+                flex-grow: 1;
+            }
+
+            .key-space {
+                width: 350px;
+            }
+
+            /* CapsLock 组合样式 */
+            .capslock-combo {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                line-height: 1.2;
+            }
+
+            .combo-item {
+                font-size: 11px;
+            }
+
+            /* 普通模式 - 特殊键高亮 */
+            .key-special-highlight {
+                background-color: var(--key-special-color);
+                color: white;
+            }
+
+            .key-special-highlight:hover {
+                background-color: var(--key-special-color);
+                filter: brightness(1.1);
+            }
+
+            /* Tab 模式 - 方向键等高亮 */
+            .key-tab-alt {
+                background-color: var(--key-tab-alt-color);
+                color: white;
+            }
+
+            .key-tab-alt:hover {
+                background-color: var(--key-tab-alt-color);
+                filter: brightness(1.1);
+            }
+
+            /* 编辑模式高亮 */
+            .key-edit-highlight {
+                background-color: var(--key-edit-color);
+                color: white;
+            }
+
+            .key-edit-highlight:hover {
+                background-color: var(--key-edit-color);
+                filter: brightness(1.1);
+            }
+
+            /* Win 模式 - CapsLock 高亮 */
+            .key-capslock-highlight {
+                background-color: var(--key-highlight-color);
+                color: white;
+            }
+
+            .key-capslock-highlight:hover {
+                background-color: var(--key-highlight-color);
+                filter: brightness(1.1);
+            }
+
+            /* 按键按下状态 */
+            .key.pressed {
+                background-color: var(--key-bg-active);
+                transform: translateY(2px);
+                box-shadow:
+                    0 0 0 var(--shadow-dark),
+                    inset 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+
+            /* 特殊按键宽度调整 */
+            .key-backspace {
+                width: 80px;
+            }
+
+            .key-tab {
+                width: 60px;
+            }
+
+            .key-capslock {
+                width: 70px;
+            }
+
+            .key-enter {
+                width: 80px;
+            }
+
+            .key-shift {
+                width: 90px;
+            }
+
+            .key-shift-right {
+                width: 110px;
+            }
+
+            .key-ctrl,
+            .key-win,
+            .key-alt,
+            .key-alt-right,
+            .key-appskey,
+            .key-ctrl-right {
+                width: 55px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <button class="theme-toggle" id="themeToggle" aria-label="切换深色模式">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+            <div class="keyboard" id="keyboard">
+                <div class="keyboard-row" data-row="-1">
+                    <div class="key" data-key="`">`</div>
+                    <div class="key" data-key="1">1</div>
+                    <div class="key" data-key="2">2</div>
+                    <div class="key" data-key="3">3</div>
+                    <div class="key" data-key="4">4</div>
+                    <div class="key" data-key="5">5</div>
+                    <div class="key" data-key="6">6</div>
+                    <div class="key" data-key="7">7</div>
+                    <div class="key" data-key="8">8</div>
+                    <div class="key" data-key="9">9</div>
+                    <div class="key" data-key="0">0</div>
+                    <div class="key" data-key="-">-</div>
+                    <div class="key" data-key="=">=</div>
+                    <div class="key key-special key-backspace" data-key="Backspace" tabindex="0">Backspace</div>
+                </div>
+                <div class="keyboard-row" data-row="0">
+                    <div class="key key-special key-tab" data-key="Tab" tabindex="0">
+                        <span class="key-label">Tab</span>
+                        <span class="key-alt-label" style="display: none">Alt</span>
+                    </div>
+                    <div class="key" data-key="q">Q</div>
+                    <div class="key" data-key="w">W</div>
+                    <div class="key" data-key="e">E</div>
+                    <div class="key" data-key="r">R</div>
+                    <div class="key" data-key="t">T</div>
+                    <div class="key" data-key="y">Y</div>
+                    <div class="key" data-key="u">U</div>
+                    <div class="key" data-key="i">I</div>
+                    <div class="key" data-key="o">O</div>
+                    <div class="key" data-key="p">P</div>
+                    <div class="key key-bracket" data-key="[">[</div>
+                    <div class="key key-bracket" data-key="]">]</div>
+                    <div class="key key-backslash" data-key="\">\</div>
+                </div>
+                <div class="keyboard-row" data-row="1">
+                    <div class="key key-special key-capslock" data-key="CapsLock" tabindex="0">
+                        <div class="capslock-combo">
+                            <span class="combo-item combo-ctrl">Ctrl</span>
+                            <span class="combo-item combo-esc">Esc</span>
+                        </div>
+                        <span class="capslock-label" style="display: none">CapsLock</span>
+                    </div>
+                    <div class="key" data-key="a">A</div>
+                    <div class="key" data-key="s">S</div>
+                    <div class="key" data-key="d">D</div>
+                    <div class="key" data-key="f">F</div>
+                    <div class="key" data-key="g">G</div>
+                    <div class="key" data-key="h">H</div>
+                    <div class="key" data-key="j">J</div>
+                    <div class="key" data-key="k">K</div>
+                    <div class="key" data-key="l">L</div>
+                    <div class="key" data-key=";" tabindex="0">
+                        <span class="key-label">;</span>
+                        <span class="key-alt-label" style="display: none">End</span>
+                    </div>
+                    <div class="key key-quote" data-key="'">'</div>
+                    <div class="key key-special key-enter" data-key="Enter" tabindex="0">Enter</div>
+                </div>
+                <div class="keyboard-row" data-row="2">
+                    <div class="key key-special key-shift" data-key="Shift" tabindex="0">Shift</div>
+                    <div class="key" data-key="z">Z</div>
+                    <div class="key" data-key="x">X</div>
+                    <div class="key" data-key="c">C</div>
+                    <div class="key" data-key="v">V</div>
+                    <div class="key" data-key="b">B</div>
+                    <div class="key" data-key="n">N</div>
+                    <div class="key" data-key="m">M</div>
+                    <div class="key key-comma" data-key=",">,</div>
+                    <div class="key key-period" data-key=".">.</div>
+                    <div class="key key-slash" data-key="/">/</div>
+                    <div class="key key-special key-shift-right" data-key="ShiftR" tabindex="0">Shift</div>
+                </div>
+                <div class="keyboard-row" data-row="3">
+                    <div class="key key-special key-ctrl" data-key="Ctrl" tabindex="0">Ctrl</div>
+                    <div class="key key-special key-win" data-key="Win" tabindex="0">Win</div>
+                    <div class="key key-special key-alt" data-key="Alt" tabindex="0">Alt</div>
+                    <div class="key key-space" data-key=" " tabindex="0">
+                        <span class="key-label"> </span>
+                    </div>
+                    <div class="key key-special key-alt-right" data-key="AltR" tabindex="0">Alt</div>
+                    <div class="key key-special key-appskey" data-key="AppsKey" tabindex="0">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            width="18"
+                            height="18">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="9" x2="15" y2="9"></line>
+                            <line x1="9" y1="12" x2="15" y2="12"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="key key-special key-ctrl-right" data-key="CtrlR" tabindex="0">Ctrl</div>
+                </div>
+            </div>
+        </div>
+        <script>
+            // 键盘状态管理
+            const KeyboardState = {
+                isTabPressed: false,
+                isSemicolonPressed: false,
+                isEditMode: false,
+                isWinPressed: false,
+                isDarkMode: false,
+            };
+
+            // DOM 元素
+            const themeToggle = document.getElementById('themeToggle');
+            const keyboard = document.getElementById('keyboard');
+
+            // 初始化
+            function init() {
+                loadThemePreference();
+                bindEvents();
+                updateKeyboardDisplay();
+            }
+
+            // 绑定事件
+            function bindEvents() {
+                // 主题切换
+                themeToggle.addEventListener('click', toggleTheme);
+
+                // 键盘点击事件
+                keyboard.addEventListener('click', handleKeyClick);
+            }
+
+            // 处理按键点击
+            function handleKeyClick(e) {
+                const key = e.target.closest('.key');
+                if (!key) return;
+
+                const keyValue = key.dataset.key;
+
+                switch (keyValue) {
+                    case 'Tab':
+                        // 在编辑模式下，Tab 键不执行任何操作（只显示为 Alt）
+                        if (KeyboardState.isEditMode) {
+                            return;
+                        }
+                        toggleTabMode();
+                        break;
+                    case ';':
+                        // 在编辑模式下，分号键不执行任何操作
+                        if (KeyboardState.isEditMode) {
+                            return;
+                        }
+                        // 在 Tab 模式下，不能切换分号模式
+                        if (KeyboardState.isTabPressed) {
+                            return;
+                        }
+                        toggleSemicolonMode();
+                        break;
+                    case 'Win':
+                        toggleWinMode();
+                        break;
+                    case 'j':
+                        // 在分号模式下点击 j 键进入编辑模式
+                        if (KeyboardState.isSemicolonPressed && !KeyboardState.isEditMode) {
+                            enterEditMode();
+                        }
+                        break;
+                    case 'o':
+                        if (KeyboardState.isEditMode) {
+                            exitEditMode();
+                        }
+                        break;
+                }
+            }
+
+            // 切换 Tab 模式
+            function toggleTabMode() {
+                // 如果在编辑模式、分号模式或 Win 模式，不能进入 Tab 模式
+                if (KeyboardState.isEditMode || KeyboardState.isSemicolonPressed || KeyboardState.isWinPressed) {
+                    return;
+                }
+                KeyboardState.isTabPressed = !KeyboardState.isTabPressed;
+                updateKeyboardDisplay();
+            }
+
+            // 切换分号模式
+            function toggleSemicolonMode() {
+                // 如果在编辑模式、Tab 模式或 Win 模式，不能进入分号模式
+                if (KeyboardState.isEditMode || KeyboardState.isTabPressed || KeyboardState.isWinPressed) {
+                    return;
+                }
+                KeyboardState.isSemicolonPressed = !KeyboardState.isSemicolonPressed;
+                updateKeyboardDisplay();
+            }
+
+            // 进入编辑模式
+            function enterEditMode() {
+                // Win 模式下不能进入编辑模式
+                if (KeyboardState.isWinPressed) {
+                    return;
+                }
+                KeyboardState.isEditMode = true;
+                KeyboardState.isSemicolonPressed = false;
+                KeyboardState.isTabPressed = false;
+                updateKeyboardDisplay();
+            }
+
+            // 退出编辑模式
+            function exitEditMode() {
+                KeyboardState.isEditMode = false;
+                updateKeyboardDisplay();
+            }
+
+            // 切换 Win 模式
+            function toggleWinMode() {
+                // Win 模式可以与其他模式共存，但这里只允许在普通模式下切换
+                if (KeyboardState.isEditMode || KeyboardState.isTabPressed || KeyboardState.isSemicolonPressed) {
+                    return;
+                }
+                KeyboardState.isWinPressed = !KeyboardState.isWinPressed;
+                updateKeyboardDisplay();
+            }
+
+            // 更新键盘显示
+            function updateKeyboardDisplay() {
+                const keys = document.querySelectorAll('.key');
+
+                keys.forEach((key) => {
+                    const keyValue = key.dataset.key;
+                    resetKeyDisplay(key);
+
+                    if (KeyboardState.isEditMode) {
+                        applyEditModeStyles(key, keyValue);
+                    } else if (KeyboardState.isTabPressed) {
+                        applyTabModeStyles(key, keyValue);
+                    } else if (KeyboardState.isSemicolonPressed) {
+                        applySemicolonModeStyles(key, keyValue);
+                    } else {
+                        applyNormalModeStyles(key, keyValue);
+                    }
+
+                    if (KeyboardState.isWinPressed) {
+                        applyWinModeStyles(key, keyValue);
+                    }
+                });
+            }
+
+            // 存储原始文本的 Map
+            const originalTextMap = new Map();
+
+            // 获取按键的原始文本
+            function getOriginalText(key, keyValue) {
+                if (originalTextMap.has(keyValue)) {
+                    return originalTextMap.get(keyValue);
+                }
+                const keyLabel = key.querySelector('.key-label');
+                const text = keyLabel ? keyLabel.textContent : key.textContent;
+                originalTextMap.set(keyValue, text);
+                return text;
+            }
+
+            // 重置按键显示
+            function resetKeyDisplay(key) {
+                key.classList.remove(
+                    'key-highlight',
+                    'key-special-highlight',
+                    'key-edit-highlight',
+                    'key-tab-alt',
+                    'key-capslock-highlight',
+                    'pressed',
+                );
+
+                // 重置标签显示
+                const keyLabel = key.querySelector('.key-label');
+                const keyAltLabel = key.querySelector('.key-alt-label');
+                const keyValue = key.dataset.key;
+
+                if (keyLabel) {
+                    keyLabel.style.display = '';
+                    // 恢复原始文本
+                    if (keyValue && originalTextMap.has(keyValue)) {
+                        keyLabel.textContent = originalTextMap.get(keyValue);
+                    }
+                } else if (keyValue && originalTextMap.has(keyValue)) {
+                    // 对于没有 key-label 的按键，直接恢复 textContent
+                    key.textContent = originalTextMap.get(keyValue);
+                }
+                if (keyAltLabel) keyAltLabel.style.display = 'none';
+
+                // 重置 CapsLock 显示
+                const capslockCombo = key.querySelector('.capslock-combo');
+                const capslockLabel = key.querySelector('.capslock-label');
+
+                if (capslockCombo) capslockCombo.style.display = '';
+                if (capslockLabel) capslockLabel.style.display = 'none';
+            }
+
+            // 普通模式样式
+            function applyNormalModeStyles(key, keyValue) {
+                // Win 模式下，Tab 和分号键不显示颜色
+                if (KeyboardState.isWinPressed) {
+                    const winSpecialKeys = ['CapsLock', 'Win'];
+                    if (winSpecialKeys.includes(keyValue)) {
+                        key.classList.add('key-special-highlight');
+                    }
+                    return;
+                }
+                const specialKeys = ['Tab', 'CapsLock', 'Win', ';'];
+                if (specialKeys.includes(keyValue)) {
+                    key.classList.add('key-special-highlight');
+                }
+            }
+
+            // 创建 AppsKey 图标 SVG
+            function createAppsKeyIcon() {
+                return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="9" x2="15" y2="9"></line>
+                            <line x1="9" y1="12" x2="15" y2="12"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>`;
+            }
+
+            // Tab 模式样式
+            function applyTabModeStyles(key, keyValue) {
+                const arrowKeys = {
+                    i: { alt: '↑', class: 'key-tab-alt' },
+                    j: { alt: '←', class: 'key-tab-alt' },
+                    k: { alt: '↓', class: 'key-tab-alt' },
+                    l: { alt: '→', class: 'key-tab-alt' },
+                    h: { alt: 'Home', class: 'key-tab-alt' },
+                    ';': { alt: 'End', class: 'key-tab-alt' },
+                };
+
+                if (arrowKeys[keyValue]) {
+                    key.classList.add(arrowKeys[keyValue].class);
+                    // 保存原始文本
+                    getOriginalText(key, keyValue);
+                    // 更新文本
+                    const keyLabel = key.querySelector('.key-label');
+                    if (keyLabel) {
+                        keyLabel.textContent = arrowKeys[keyValue].alt;
+                    } else {
+                        key.textContent = arrowKeys[keyValue].alt;
+                    }
+                }
+
+                // m 键显示为 AppsKey 图标
+                if (keyValue === 'm') {
+                    key.classList.add('key-tab-alt');
+                    getOriginalText(key, keyValue);
+                    key.innerHTML = createAppsKeyIcon();
+                }
+
+                // Tab 键显示为按下状态
+                if (keyValue === 'Tab') {
+                    key.classList.add('pressed');
+                }
+            }
+
+            // 分号模式样式（进入编辑模式前）
+            function applySemicolonModeStyles(key, keyValue) {
+                if (keyValue === ';') {
+                    key.classList.add('key-edit-highlight');
+                    // 分号键显示为按下状态
+                    key.classList.add('pressed');
+                }
+                if (keyValue === 'j') {
+                    key.classList.add('key-edit-highlight');
+                }
+            }
+
+            // 编辑模式样式
+            function applyEditModeStyles(key, keyValue) {
+                const editKeys = {
+                    i: { alt: '↑', class: 'key-edit-highlight' },
+                    j: { alt: '←', class: 'key-edit-highlight' },
+                    k: { alt: '↓', class: 'key-edit-highlight' },
+                    l: { alt: '→', class: 'key-edit-highlight' },
+                    h: { alt: 'Home', class: 'key-edit-highlight' },
+                    ';': { alt: 'End', class: 'key-edit-highlight' },
+                    o: { alt: 'O', class: 'key-edit-highlight' },
+                    Tab: { alt: 'Alt', class: 'key-edit-highlight' },
+                };
+
+                if (editKeys[keyValue]) {
+                    key.classList.add(editKeys[keyValue].class);
+
+                    if (keyValue === 'Tab') {
+                        const keyLabel = key.querySelector('.key-label');
+                        const keyAltLabel = key.querySelector('.key-alt-label');
+                        if (keyLabel) keyLabel.style.display = 'none';
+                        if (keyAltLabel) {
+                            keyAltLabel.style.display = '';
+                            keyAltLabel.textContent = 'Alt';
+                        }
+                    } else {
+                        // 保存原始文本
+                        getOriginalText(key, keyValue);
+                        // 更新文本
+                        const keyLabel = key.querySelector('.key-label');
+                        if (keyLabel) {
+                            keyLabel.textContent = editKeys[keyValue].alt;
+                        } else {
+                            key.textContent = editKeys[keyValue].alt;
+                        }
+                    }
+                }
+
+                // m 键显示为 AppsKey 图标
+                if (keyValue === 'm') {
+                    key.classList.add('key-edit-highlight');
+                    getOriginalText(key, keyValue);
+                    key.innerHTML = createAppsKeyIcon();
+                }
+            }
+
+            // Win 模式样式
+            function applyWinModeStyles(key, keyValue) {
+                if (keyValue === 'CapsLock') {
+                    const capslockCombo = key.querySelector('.capslock-combo');
+                    const capslockLabel = key.querySelector('.capslock-label');
+
+                    if (capslockCombo) capslockCombo.style.display = 'none';
+                    if (capslockLabel) {
+                        capslockLabel.style.display = '';
+                        capslockLabel.textContent = 'CapsLock';
+                    }
+                    key.classList.add('key-capslock-highlight');
+                }
+
+                // Win 键显示为按下状态
+                if (keyValue === 'Win') {
+                    key.classList.add('pressed');
+                }
+            }
+
+            // 切换主题
+            function toggleTheme() {
+                KeyboardState.isDarkMode = !KeyboardState.isDarkMode;
+                document.documentElement.setAttribute('data-theme', KeyboardState.isDarkMode ? 'dark' : 'light');
+                localStorage.setItem('darkMode', KeyboardState.isDarkMode ? 'true' : 'false');
+            }
+
+            // 加载主题偏好
+            function loadThemePreference() {
+                const savedDarkMode = localStorage.getItem('darkMode');
+                if (savedDarkMode === 'true') {
+                    KeyboardState.isDarkMode = true;
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            }
+
+            // 启动
+            document.addEventListener('DOMContentLoaded', init);
+        </script>
+    </body>
+</html>
