@@ -1,3 +1,5 @@
+[![在线演示](https://img.shields.io/badge/在线演示-点击查看-blue?style=for-the-badge&logo=github)](https://naturaldoing.github.io/input-enhance/)
+
 # 输入增强
 
 一个基于 AutoHotkey v2.0 的键盘输入增强工具，让你的键盘使用更加高效便捷。
